@@ -281,7 +281,7 @@ namespace WolvenKit.Modkit.RED4
                     }
                     catch (Exception e)
                     {
-                        _loggerService.Error(e.Message);
+                        _loggerService.Error($"{relPath} - {e.Message}");
 
                         return false;
                     }
@@ -295,7 +295,7 @@ namespace WolvenKit.Modkit.RED4
                     }
                     catch (Exception e)
                     {
-                        _loggerService.Error(e.Message);
+                        _loggerService.Error($"{relPath} - {e.Message}");
 
                         return false;
                     }
