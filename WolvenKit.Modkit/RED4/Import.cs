@@ -452,13 +452,15 @@ namespace WolvenKit.Modkit.RED4
                 SetTextureGroupSetup(xbm.Setup, red);
 
                 // blob
-                xbm.RenderResourceBlob = new CHandle<IRenderResourceBlob>(red, xbm, "renderTextureResource")
+                var renderTextureResource = new rendRenderTextureResource(red, xbm, "renderTextureResource") { IsSerialized = true };
+                renderTextureResource.RenderResourceBlobPC = new CHandle<IRenderResourceBlob>(red, renderTextureResource, "renderResourceBlobPC")
                     .SetValue(2) as CHandle<IRenderResourceBlob>;
+                xbm.RenderTextureResource = renderTextureResource;
 
                 // create rendRenderTextureBlobPC chunk
-                var blob = new rendRenderTextureBlobPC(red, null, "rendRenderTextureBlobPC");
+                var blob = new rendRenderTextureBlobPC(red, null, "rendRenderTextureBlobPC") { IsSerialized = true };
                 // header
-                var header = new rendRenderTextureBlobHeader(red, blob as CVariable, "header")
+                var header = new rendRenderTextureBlobHeader(red, blob, "header")
                     {
                         IsSerialized = true,
                         Version = new CUInt32(red, blob.Header, "version").SetValue(2) as CUInt32,
@@ -468,23 +470,23 @@ namespace WolvenKit.Modkit.RED4
                 var sizeInfo = new rendRenderTextureBlobSizeInfo(red, blob.Header, "sizeInfo")
                     {
                         IsSerialized = true,
-                        Width = new CUInt16(red, header.SizeInfo, "width").SetValue(width) as CUInt16,
-                        Height = new CUInt16(red, header.SizeInfo, "height").SetValue(height) as CUInt16
+                        Width = new CUInt16(red, header.SizeInfo, "width").SetValue((ushort)width) as CUInt16,
+                        Height = new CUInt16(red, header.SizeInfo, "height").SetValue((ushort)height) as CUInt16
                     };
                 header.SizeInfo = sizeInfo;
                 // header.TextureInfo
                 var texInfo = new rendRenderTextureBlobTextureInfo(red, blob.Header, "textureInfo")
                     {
                         IsSerialized = true,
-                        TextureDataSize = new CUInt32(red, header.TextureInfo, "textureDataSize").SetValue(textureDataSize) as CUInt32,
-                        SliceSize = new CUInt32(red, header.TextureInfo, "sliceSize").SetValue(textureDataSize) as CUInt32,
+                        TextureDataSize = new CUInt32(red, header.TextureInfo, "textureDataSize").SetValue((uint)textureDataSize) as CUInt32,
+                        SliceSize = new CUInt32(red, header.TextureInfo, "sliceSize").SetValue((uint)textureDataSize) as CUInt32,
                         DataAlignment = new CUInt32(red, header.TextureInfo, "dataAlignment").SetValue(alignment) as CUInt32,
-                        SliceCount = new CUInt16(red, header.TextureInfo, "sliceCount").SetValue(slicecount) as CUInt16,
-                        MipCount = new CUInt8(red, header.TextureInfo, "mipCount").SetValue(mipCount) as CUInt8
+                        SliceCount = new CUInt16(red, header.TextureInfo, "sliceCount").SetValue((ushort)slicecount) as CUInt16,
+                        MipCount = new CUInt8(red, header.TextureInfo, "mipCount").SetValue((byte)mipCount) as CUInt8
                     };
                 header.TextureInfo = texInfo;
                 // header.TextureInfo
-                var mimMapInfo = new CArray<rendRenderTextureBlobMipMapInfo>(red, blob.Header, "mimMapInfo");
+                var mipMapInfo = new CArray<rendRenderTextureBlobMipMapInfo>(red, blob.Header, "mipMapInfo") { IsSerialized = true };
                 using (var reader = new BinaryReader(ms))
                 {
                     ms.Seek(148, SeekOrigin.Begin);
@@ -504,32 +506,32 @@ namespace WolvenKit.Modkit.RED4
                         var buffer = reader.ReadBytes(slicepitch);
                         var size = buffer.Length;
 
-                        var info = new rendRenderTextureBlobMipMapInfo(red, mimMapInfo, i.ToString()) { IsSerialized = true };
+                        var info = new rendRenderTextureBlobMipMapInfo(red, mipMapInfo, i.ToString()) { IsSerialized = true };
                         info.Layout = new rendRenderTextureBlobMemoryLayout(red, info, "layout")
                         {
                             IsSerialized = true,
                             RowPitch = new CUInt32(red, info.Layout, "rowPitch").SetValue(rowpitch) as CUInt32,
-                            SlicePitch = new CUInt32(red, info.Layout, "slicePitch").SetValue(slicepitch) as CUInt32
+                            SlicePitch = new CUInt32(red, info.Layout, "slicePitch").SetValue((uint)slicepitch) as CUInt32
                         };
                         info.Placement = new rendRenderTextureBlobPlacement(red, info, "placement")
                         {
                             IsSerialized = true,
-                            Offset = new CUInt32(red, info.Layout, "rowPitch").SetValue(offset) as CUInt32,
-                            Size = new CUInt32(red, info.Layout, "slicePitch").SetValue(slicepitch) as CUInt32
+                            Offset = new CUInt32(red, info.Layout, "offset").SetValue((uint)offset) as CUInt32,
+                            Size = new CUInt32(red, info.Layout, "size").SetValue((uint)slicepitch) as CUInt32
                         };
 
 
 
-                        mimMapInfo.Add(info);
+                        mipMapInfo.Add(info);
 
                         mipsizeH = Math.Max(4, mipsizeH / 2);
                         mipsizeW = Math.Max(4, mipsizeW / 2);
                     }
                 }
-                header.MipMapInfo = mimMapInfo;
+                header.MipMapInfo = mipMapInfo;
                 blob.Header = header;
                 // texdata buffer ref
-                blob.TextureData = new serializationDeferredDataBuffer(red, blob as CVariable, "textureData")
+                blob.TextureData = new serializationDeferredDataBuffer(red, blob, "textureData")
                     .SetValue(1) as serializationDeferredDataBuffer;
 
                 red.CreateChunk(xbm);
@@ -574,7 +576,7 @@ namespace WolvenKit.Modkit.RED4
                     IsSerialized = true,
                     Value = args.TextureGroup
                 };
-                setup.Compression = new CEnum<Enums.ETextureCompression>(cr2w, setup, "setup")
+                setup.Compression = new CEnum<Enums.ETextureCompression>(cr2w, setup, "compression")
                 {
                     IsSerialized = true,
                     Value = Enums.ETextureCompression.TCM_None
