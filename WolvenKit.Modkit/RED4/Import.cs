@@ -13,6 +13,7 @@ using WolvenKit.Interfaces.Extensions;
 using WolvenKit.Modkit.Exceptions;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.Modkit.RED4.MLMask;
+using WolvenKit.RED4.CR2W.Reflection;
 
 namespace WolvenKit.Modkit.RED4
 {
@@ -131,6 +132,10 @@ namespace WolvenKit.Modkit.RED4
                         return cookedTextureFormat == ECookedTextureFormat.xbm
                             ? ImportXbm(rawRelative, outDir, args.Get<XbmImportArgs>())
                             : RebuildTexture(redfile);
+                    }
+                    else
+                    {
+                        return ImportXbm(rawRelative, outDir, args.Get<XbmImportArgs>());
                     }
                 }
             }
@@ -388,10 +393,7 @@ namespace WolvenKit.Modkit.RED4
             }
             else
             {
-                //var md = DDSUtils.GetMetadataFromDDSFile(rawRelative.FullPath);
-
                 using var fs = new FileStream(rawRelative.FullPath, FileMode.Open);
-                //fs.Seek(148, SeekOrigin.Begin);
                 fs.Seek(0, SeekOrigin.Begin);
                 fs.CopyTo(ms);
             }
@@ -439,21 +441,24 @@ namespace WolvenKit.Modkit.RED4
                 // create cr2wfile
                 var red = new CR2WFile();
                 red.Buffers.Add(new CR2WBufferWrapper(new CR2WBuffer()));
+
                 // create xbm chunk
                 var xbm = new CBitmapTexture(red, null, "CBitmapTexture");
                 xbm.CookingPlatform = new CEnum<Enums.ECookingPlatform>(red, xbm, "cookingPlatform") { Value = Enums.ECookingPlatform.PLATFORM_PC, IsSerialized = true };
                 xbm.Width = new CUInt32(red, xbm, "width") { Value = width, IsSerialized = true };
                 xbm.Height = new CUInt32(red, xbm, "height") { Value = height, IsSerialized = true };
-
                 xbm.Setup = new STextureGroupSetup(red, xbm, "setup") { IsSerialized = true };
+
                 SetTextureGroupSetup(xbm.Setup, red);
 
                 // blob
                 xbm.RenderResourceBlob = new CHandle<IRenderResourceBlob>(red, xbm, "renderTextureResource")
                     .SetValue(2) as CHandle<IRenderResourceBlob>;
+
+                // create rendRenderTextureBlobPC chunk
                 var blob = new rendRenderTextureBlobPC(red, null, "rendRenderTextureBlobPC");
                 // header
-                var header = new rendRenderTextureBlobHeader(red, blob.ParentVar as CVariable, "header")
+                var header = new rendRenderTextureBlobHeader(red, blob as CVariable, "header")
                     {
                         IsSerialized = true,
                         Version = new CUInt32(red, blob.Header, "version").SetValue(2) as CUInt32,
@@ -463,19 +468,19 @@ namespace WolvenKit.Modkit.RED4
                 var sizeInfo = new rendRenderTextureBlobSizeInfo(red, blob.Header, "sizeInfo")
                     {
                         IsSerialized = true,
-                        Width = new CUInt16().SetValue(width) as CUInt16,
-                        Height = new CUInt16().SetValue(height) as CUInt16
+                        Width = new CUInt16(red, header.SizeInfo, "width").SetValue(width) as CUInt16,
+                        Height = new CUInt16(red, header.SizeInfo, "height").SetValue(height) as CUInt16
                     };
                 header.SizeInfo = sizeInfo;
                 // header.TextureInfo
                 var texInfo = new rendRenderTextureBlobTextureInfo(red, blob.Header, "textureInfo")
                     {
                         IsSerialized = true,
-                        TextureDataSize = new CUInt32().SetValue(textureDataSize) as CUInt32,
-                        SliceSize = new CUInt32().SetValue(textureDataSize) as CUInt32,
-                        DataAlignment = new CUInt32().SetValue(alignment) as CUInt32,
-                        SliceCount = new CUInt16().SetValue(slicecount) as CUInt16,
-                        MipCount = new CUInt8().SetValue(mipCount) as CUInt8
+                        TextureDataSize = new CUInt32(red, header.TextureInfo, "textureDataSize").SetValue(textureDataSize) as CUInt32,
+                        SliceSize = new CUInt32(red, header.TextureInfo, "sliceSize").SetValue(textureDataSize) as CUInt32,
+                        DataAlignment = new CUInt32(red, header.TextureInfo, "dataAlignment").SetValue(alignment) as CUInt32,
+                        SliceCount = new CUInt16(red, header.TextureInfo, "sliceCount").SetValue(slicecount) as CUInt16,
+                        MipCount = new CUInt8(red, header.TextureInfo, "mipCount").SetValue(mipCount) as CUInt8
                     };
                 header.TextureInfo = texInfo;
                 // header.TextureInfo
@@ -486,28 +491,31 @@ namespace WolvenKit.Modkit.RED4
 
                     var mipsizeH = height;
                     var mipsizeW = width;
+                    var offset = 0;
                     for (int i = 0; i < metadata.Mipscount; i++)
                     {
+                        // slicepitch
+                        var slicepitch = (int)DDSUtils.GetMipMapSize(mipsizeW, mipsizeH, fmt);
+                        offset += slicepitch;   
+                        //rowpitch
+                        var rowpitch = DDSUtils.GetBlockSize(mipsizeW, fmt);
 
-                        var mipszie = (int)DDSUtils.GetMipMapSize(mipsizeW, mipsizeH, fmt);
-                        var blockize = DDSUtils.GetBlockSize(mipsizeW, fmt);
 
-
-                        var buffer = reader.ReadBytes(mipszie);
+                        var buffer = reader.ReadBytes(slicepitch);
                         var size = buffer.Length;
 
                         var info = new rendRenderTextureBlobMipMapInfo(red, mimMapInfo, i.ToString()) { IsSerialized = true };
                         info.Layout = new rendRenderTextureBlobMemoryLayout(red, info, "layout")
                         {
                             IsSerialized = true,
-                            RowPitch = new CUInt32(red, info.Layout, "rowPitch").SetValue(0) as CUInt32,
-                            SlicePitch = new CUInt32(red, info.Layout, "slicePitch").SetValue(0) as CUInt32
+                            RowPitch = new CUInt32(red, info.Layout, "rowPitch").SetValue(rowpitch) as CUInt32,
+                            SlicePitch = new CUInt32(red, info.Layout, "slicePitch").SetValue(slicepitch) as CUInt32
                         };
                         info.Placement = new rendRenderTextureBlobPlacement(red, info, "placement")
                         {
                             IsSerialized = true,
-                            Offset = new CUInt32(red, info.Layout, "rowPitch").SetValue(0) as CUInt32,
-                            Size = new CUInt32(red, info.Layout, "slicePitch").SetValue(0) as CUInt32
+                            Offset = new CUInt32(red, info.Layout, "rowPitch").SetValue(offset) as CUInt32,
+                            Size = new CUInt32(red, info.Layout, "slicePitch").SetValue(slicepitch) as CUInt32
                         };
 
 
@@ -521,92 +529,99 @@ namespace WolvenKit.Modkit.RED4
                 header.MipMapInfo = mimMapInfo;
                 blob.Header = header;
                 // texdata buffer ref
-                blob.TextureData = new serializationDeferredDataBuffer(red, blob.ParentVar as CVariable, "textureData")
+                blob.TextureData = new serializationDeferredDataBuffer(red, blob as CVariable, "textureData")
                     .SetValue(1) as serializationDeferredDataBuffer;
 
+                red.CreateChunk(xbm);
+                var parentChunk = red.Chunks.First();
+                red.CreateChunk(blob, 1, parentChunk as CR2WExportWrapper);
 
                 // write
-                using (var outms = new MemoryStream())
-                using (var bw = new BinaryWriter(ms))
+                var outpath = new RedRelativePath(rawRelative)
+                    .ChangeBaseDir(outDir)
+                    .ChangeExtension(ERedExtension.xbm.ToString());
+                using var fs = new FileStream(outpath.FullPath, FileMode.Create, FileAccess.ReadWrite);
+                //using (var outms = new MemoryStream())
+                using (var bw = new BinaryWriter(fs))
                 {
+                    // write cr2w file
                     red.Write(bw);
 
-                    outms.Seek(0, SeekOrigin.Begin);
-                    var result = Rebuild(outms, new List<byte[]>() {ms.ToByteArray()});
+                    // add buffer
+                    fs.Seek(0, SeekOrigin.Begin);
+                    var result = Rebuild(fs, new List<byte[]>() {ms.ToByteArray()});
                     if (!result)
                     {
                         throw new ImportException();
                     }
-
-
                 }
-
-
-
-                // remove dds header
-                // kraken ddsfile
-
-
-                // compress file
-
-                // append to cr2wfile
-
-                // update cr2w headers
-
-                throw new NotImplementedException();
-
-
             }
+
+            return true;
 
             #region local functions
 #pragma warning disable CS8321 // Local function is declared but never used
 
-            void SetTextureGroupSetup(STextureGroupSetup setup, CR2WFile cr2w)
+            void SetTextureGroupSetup(STextureGroupSetup setup, IRed4EngineFile cr2w)
             {
                 // first check the user-texture group
-                var (compression, rawformat, flags) = CommonFunctions.GetRedFormatsFromTextureGroup(args.TextureGroup);
-                setup.Group = new CEnum<Enums.GpuWrapApieTextureGroup>(cr2w, setup.ParentVar as CVariable, "group")
+                //var (compression, rawformat, flags) = CommonFunctions.GetRedFormatsFromTextureGroup(args.TextureGroup);
+
+
+
+                setup.Group = new CEnum<Enums.GpuWrapApieTextureGroup>(cr2w, setup, "group")
                 {
                     IsSerialized = true,
                     Value = args.TextureGroup
                 };
-                if (flags is CommonFunctions.ETexGroupFlags.Both or CommonFunctions.ETexGroupFlags.CompressionOnly)
+                setup.Compression = new CEnum<Enums.ETextureCompression>(cr2w, setup, "setup")
                 {
-                    setup.Compression = new CEnum<Enums.ETextureCompression>(cr2w, setup.ParentVar as CVariable, "setup")
-                    {
-                        IsSerialized = true,
-                        Value = compression
-                    };
-                }
-
-                if (flags is CommonFunctions.ETexGroupFlags.Both or CommonFunctions.ETexGroupFlags.RawFormatOnly)
+                    IsSerialized = true,
+                    Value = Enums.ETextureCompression.TCM_None
+                };
+                setup.RawFormat = new CEnum<Enums.ETextureRawFormat>(cr2w, setup, "rawFormat")
                 {
-                    setup.RawFormat = new CEnum<Enums.ETextureRawFormat>(cr2w, setup.ParentVar as CVariable, "rawFormat")
-                    {
-                        IsSerialized = true,
-                        Value = rawformat
-                    };
-                }
+                    IsSerialized = true,
+                    Value = Enums.ETextureRawFormat.TRF_TrueColor
+                };
 
-                // if that didn't work, interpret the filename suffix
-                if (rawRelative.Name.Contains('_'))
-                {
-                    // try interpret suffix
-                    switch (rawRelative.Name.Split('_').Last())
-                    {
-                        case "d":
-                        case "d01":
+                //if (flags is CommonFunctions.ETexGroupFlags.Both or CommonFunctions.ETexGroupFlags.CompressionOnly)
+                //{
+                //    setup.Compression = new CEnum<Enums.ETextureCompression>(cr2w, setup.ParentVar as CVariable, "setup")
+                //    {
+                //        IsSerialized = true,
+                //        Value = compression
+                //    };
+                //}
 
-                            break;
-                        case "e":
+                //if (flags is CommonFunctions.ETexGroupFlags.Both or CommonFunctions.ETexGroupFlags.RawFormatOnly)
+                //{
+                //    setup.RawFormat = new CEnum<Enums.ETextureRawFormat>(cr2w, setup.ParentVar as CVariable, "rawFormat")
+                //    {
+                //        IsSerialized = true,
+                //        Value = rawformat
+                //    };
+                //}
 
-                            break;
-                        case "r":
-                        case "r01":
+                //// if that didn't work, interpret the filename suffix
+                //if (rawRelative.Name.Contains('_'))
+                //{
+                //    // try interpret suffix
+                //    switch (rawRelative.Name.Split('_').Last())
+                //    {
+                //        case "d":
+                //        case "d01":
 
-                            break;
-                    }
-                }
+                //            break;
+                //        case "e":
+
+                //            break;
+                //        case "r":
+                //        case "r01":
+
+                //            break;
+                //    }
+                //}
 
                 // if that also didn't work, just use default or skip
                 //TODO
