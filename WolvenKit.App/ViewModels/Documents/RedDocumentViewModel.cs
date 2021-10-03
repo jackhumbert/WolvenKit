@@ -17,6 +17,7 @@ using WolvenKit.Common.Services;
 using WolvenKit.Functionality.Commands;
 using WolvenKit.Functionality.Controllers;
 using WolvenKit.Functionality.Services;
+using WolvenKit.Models.Editor;
 using WolvenKit.MVVM.Model.ProjectManagement.Project;
 using WolvenKit.RED4.CR2W;
 using WolvenKit.ViewModels.Shell;
@@ -45,6 +46,11 @@ namespace WolvenKit.ViewModels.Documents
             OpenBufferCommand = new RelayCommand(ExecuteOpenBuffer);
             OpenImportCommand = new DelegateCommand<ICR2WImport>(ExecuteOpenImport);
 
+            ViewChunksCommand = new RelayCommand(ExecuteViewChunks, CanViewChunks);
+            ViewImportsCommand = new RelayCommand(ExecuteViewImports, CanViewImports);
+            ViewBuffersCommand = new RelayCommand(ExecuteViewBuffers, CanViewBuffers);
+            ViewEditorsCommand = new RelayCommand(ExecuteViewEditors, CanViewEditors);
+
             this.WhenAnyValue(x => x.SelectedChunk).Subscribe(chunk =>
             {
                 if (chunk != null)
@@ -59,6 +65,8 @@ namespace WolvenKit.ViewModels.Documents
 
         }
 
+        #region commands
+
         public ICommand OpenBufferCommand { get; private set; }
         private bool CanOpenBuffer() => true;
         private void ExecuteOpenBuffer()
@@ -70,10 +78,51 @@ namespace WolvenKit.ViewModels.Documents
         private bool CanOpenEditor() => true;
         private void ExecuteOpenEditor()
         {
-            // TODO: Handle command logic here
+
+
+
+
         }
 
+        public ICommand ViewChunksCommand { get; private set; }
+        private bool CanViewChunks() => true;
+        private void ExecuteViewChunks()
+        {
+            ChunksVisibility = true;
+            ImportsVisibility = false;
+            BuffersVisibility = false;
+            EditorsVisibility = false;
+        }
 
+        public ICommand ViewImportsCommand { get; private set; }
+        private bool CanViewImports() => Imports.Any();
+        private void ExecuteViewImports()
+        {
+            ChunksVisibility = false;
+            ImportsVisibility = true;
+            BuffersVisibility = false;
+            EditorsVisibility = false;
+        }
+
+        public ICommand ViewBuffersCommand { get; private set; }
+        private bool CanViewBuffers() => Buffers.Any();
+        private void ExecuteViewBuffers()
+        {
+            ChunksVisibility = false;
+            ImportsVisibility = false;
+            BuffersVisibility = true;
+            EditorsVisibility = false;
+        }
+
+        public ICommand ViewEditorsCommand { get; private set; }
+        private bool CanViewEditors() => Buffers.Any();
+        private void ExecuteViewEditors()
+        {
+            ChunksVisibility = false;
+            ImportsVisibility = false;
+            BuffersVisibility = false;
+            EditorsVisibility = true;
+        }
 
         public ICommand OpenImportCommand { get; private set; }
         private void ExecuteOpenImport(ICR2WImport input)
@@ -87,41 +136,43 @@ namespace WolvenKit.ViewModels.Documents
             }
         }
 
+        #endregion
+
         #region properties
 
         [Reactive] public ObservableCollection<ChunkPropertyViewModel> ChunkProperties { get; set; } = new();
 
-        /// <summary>
-        /// Gets or sets the editable File.
-        /// </summary>
+
         [Reactive] public IWolvenkitFile File { get; set; }
 
-        /// <summary>
-        /// Bound to the View
-        /// </summary>
         public List<ICR2WImport> Imports => File.Imports;
 
-        /// <summary>
-        /// Bound to the View
-        /// </summary>
+        [Reactive] public ICR2WImport SelectedImport { get; set; }
+
         public List<ICR2WBuffer> Buffers => File.Buffers;
 
-        /// <summary>
-        /// Bound to the View
-        /// </summary>
+        [Reactive] public ICR2WBuffer SelectedBuffer { get; set; }
+
         public List<ChunkViewModel> Chunks => File.Chunks
             .Where(_ => _.VirtualParentChunk == null)
             .Select(_ => new ChunkViewModel(_)).ToList();
 
-        /// <summary>
-        /// Bound to the View via TreeViewBehavior.cs
-        /// </summary>
         [Reactive] public ChunkViewModel SelectedChunk { get; set; }
 
-        [Reactive] public ICR2WImport SelectedImport { get; set; }
+        public List<EEditorType> Editors => GetEditors();
+
+        [Reactive] public EEditorType SelectedEditor { get; set; }
+
+
+        [Reactive] public bool ChunksVisibility { get; set; } = true;
+
+        [Reactive] public bool ImportsVisibility { get; set; }
+
+        [Reactive] public bool BuffersVisibility { get; set; }
+
+        [Reactive] public bool EditorsVisibility { get; set; }
 
         #endregion
-
 
         #region methods
 
@@ -131,7 +182,6 @@ namespace WolvenKit.ViewModels.Documents
             using var bw = new BinaryWriter(fs);
             File.Write(bw);
         }
-
 
         public override async Task<bool> OpenFileAsync(string path)
         {
@@ -172,8 +222,28 @@ namespace WolvenKit.ViewModels.Documents
             return false;
         }
 
-        #endregion
+        private List<EEditorType> GetEditors()
+        {
+            var editors = new List<EEditorType>()
+            {
+                EEditorType.W2RCEditor
+            };
+            var extension = Path.GetExtension(FilePath);
+            if (Enum.TryParse<ERedExtension>(extension, out var redExtension))
+            {
+                switch (redExtension)
+                {
+                    case ERedExtension.csv:
+                        editors.Add(EEditorType.CsvEditor);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            
 
-
+            return editors;
+            #endregion
+        }
     }
 }

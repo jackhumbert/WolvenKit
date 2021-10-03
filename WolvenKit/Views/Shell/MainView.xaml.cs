@@ -1,27 +1,16 @@
-using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Windows;
-using System.Windows.Input;
-using AdonisUI.Controls;
-using HandyControl.Tools.Extension;
 using ReactiveUI;
 using Splat;
-using WolvenKit.Functionality.Commands;
-using WolvenKit.Functionality.Helpers;
-using WolvenKit.Functionality.Layout.MLib;
-using WolvenKit.Functionality.WKitGlobal.Helpers;
 using WolvenKit.Interaction;
 using WolvenKit.ViewModels.Dialogs;
 using WolvenKit.ViewModels.Shell;
 using WolvenKit.ViewModels.Wizards;
 using WolvenKit.Views.Dialogs;
-using WolvenKit.Views.Wizards;
 
 namespace WolvenKit.Views.Shell
 {

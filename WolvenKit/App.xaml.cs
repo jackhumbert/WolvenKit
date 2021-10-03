@@ -13,7 +13,6 @@ using WolvenKit.Common.Services;
 using WolvenKit.Core.Services;
 using WolvenKit.Functionality.Controllers;
 using WolvenKit.Functionality.Helpers;
-using WolvenKit.Functionality.Initialization;
 using WolvenKit.Functionality.ProjectManagement;
 using WolvenKit.Functionality.Services;
 using WolvenKit.Functionality.WKitGlobal.Helpers;
@@ -43,6 +42,7 @@ using WolvenKit.Common.Interfaces;
 using WolvenKit.Interaction;
 using WolvenKit.Views.Tools;
 using WolvenKit.ViewModels.Tools;
+using WolvenKit.Services;
 
 namespace WolvenKit
 {
