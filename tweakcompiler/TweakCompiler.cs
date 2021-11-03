@@ -11,11 +11,11 @@ namespace TweakCompiler
         {
             try
             {
-                if (Directory.Exists("tweakdbext"))
+                if (Directory.Exists("tweakdbs"))
                 {
-                    Directory.Delete("tweakdbext", true);
+                    Directory.Delete("tweakdbs", true);
                 }
-                Directory.CreateDirectory("tweakdbext");
+                Directory.CreateDirectory("tweakdbs");
             }
             catch (Exception e)
             {
@@ -27,7 +27,7 @@ namespace TweakCompiler
             {
                 var text = File.ReadAllText(f);
                 var filename = Path.GetFileNameWithoutExtension(f) + ".bin";
-                var outPath = Path.Combine("tweakdbext", filename);
+                var outPath = Path.Combine("tweakdbs", filename);
 
                 try
                 {
