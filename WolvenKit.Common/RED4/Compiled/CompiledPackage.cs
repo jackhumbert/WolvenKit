@@ -16,6 +16,7 @@ using WolvenKit.Core.Exceptions;
 using WolvenKit.Common.Tools;
 using WolvenKit.RED4.Archive;
 using WolvenKit.RED4.Types.Exceptions;
+using WolvenKit.RED4.Archive.CR2W;
 
 namespace WolvenKit.Common.RED4.Compiled
 {
@@ -170,17 +171,16 @@ namespace WolvenKit.Common.RED4.Compiled
 
             var NumChunksDesc = (_header.ChunkDataOffset - _header.ChunkDescOffset) / 8;
 
-            throw new WolvenKit.RED4.Types.Exceptions.TodoException();
-            //for (var i = 0; i < NumChunksDesc; i++)
-            //{
-            //    br.BaseStream.Seek(baseOff + _header.ChunkDescOffset + i * 8, SeekOrigin.Begin);
-            //    var chunkDesc = br.BaseStream.ReadStruct<ChunkDesc>();
-            //    ChunkDescs.Add(chunkDesc);
+            for (var i = 0; i < NumChunksDesc; i++)
+            {
+                br.BaseStream.Seek(baseOff + _header.ChunkDescOffset + i * 8, SeekOrigin.Begin);
+                var chunkDesc = br.BaseStream.ReadStruct<ChunkDesc>();
+                ChunkDescs.Add(chunkDesc);
 
-            //    br.BaseStream.Seek(baseOff + chunkDesc.ChunkDataOffset, SeekOrigin.Begin);
-            //    CreateChunk(Names[(int)chunkDesc.ChunkRedTypeIdx].Str, i).ReadData(br);
-            //}
-            //return EFileReadErrorCodes.NoError;
+                br.BaseStream.Seek(baseOff + chunkDesc.ChunkDataOffset, SeekOrigin.Begin);
+                CreateChunk(Names[(int)chunkDesc.ChunkRedTypeIdx].Str, i).ReadData(br);
+            }
+            return EFileReadErrorCodes.NoError;
         }
         public string ToJson()
         {
@@ -189,107 +189,109 @@ namespace WolvenKit.Common.RED4.Compiled
         }
         public IRedType ReadVariable(BinaryReader br, IRedType parent)
         {
-            throw new WolvenKit.RED4.Types.Exceptions.TodoException();
-
-            //if (parent is DataBuffer buff)
-            //{
-            //    buff.Buffer.Value = (ushort)Buffers.Count;
-            //    var size = br.ReadUInt32();
-            //    var buffWrapper = new CR2WBufferWrapper();
-            //    buffWrapper.DiskSize = size;
-            //    buffWrapper.ReadData(br);
-            //    Buffers.Add(buffWrapper);
-            //}
-            //else if (parent is IRedRef rref)
-            //{
-            //    rref.DepotPath = Imports[br.ReadUInt16()].DepotPathStr;
-            //}
-            //else if (parent is IRedArray arr)
-            //{
-            //    var len = br.ReadUInt32();
-            //    for (uint e = 0; e < len; e++)
-            //    {
-            //        var element = CR2WTypeManager.Create(arr.Elementtype, Convert.ToString(e), this, null);
-            //        arr.Add(ReadVariable(br, element));
-            //        element.ParentVar = arr;
-            //    }
-            //}
-            //else if (parent is IRedEnum enu)
-            //{
-            //    var strings = new List<string>();
-            //    if (enu.IsFlag)
-            //    {
-            //        var len = br.ReadByte();
-            //        for (byte e = 0; e < len; e++)
-            //        {
-            //            strings.Add(Names[br.ReadUInt16()].Str);
-            //        }
-            //    }
-            //    else
-            //    {
-            //        strings.Add(Names[br.ReadUInt16()].Str);
-            //    }
-            //    enu.SetValue(strings);
-            //}
-            //else if (parent is LocalizationString lstr)
-            //{
-            //    lstr.Unk1.Read(br, 8);
-            //    var lslen = br.ReadUInt16();
-            //    var lsVal = System.Text.Encoding.GetEncoding("ISO-8859-1").GetString(br.ReadBytes(lslen));
-            //    lstr.Value.SetValue(lsVal);
-            //}
-            //else if (parent is CColor)
-            //{
-            //    var basePos = br.BaseStream.Position;
-            //    var numChilds = br.ReadUInt16();
-            //    var pos = basePos + 2;
-            //    for (ushort i = 0; i < numChilds; i++)
-            //    {
-            //        br.BaseStream.Position = pos;
-            //        var name = br.ReadUInt16();
-            //        var varname = Names[name].Str;
-            //        var type = br.ReadUInt16();
-            //        var typename = Names[type].Str;
-            //        var off = br.ReadUInt32();
-            //        pos = br.BaseStream.Position;
-            //        var parsedvar = parent.GetPropertyByREDName(varname);
-            //        if (parsedvar == null || parsedvar.REDType != typename)
-            //        {
-            //            throw new MissingRTTIException(varname, typename, parent.REDType);
-            //        }
-            //        br.BaseStream.Position = off + basePos;
-            //        parsedvar = ReadVariable(br, parsedvar);
-            //    }
-            //}
-            //else if (parent.ChildrEditableVariables.Count > 0)
-            //{
-            //    var basePos = br.BaseStream.Position;
-            //    var numChilds = br.ReadUInt16();
-            //    var pos = basePos + 2;
-            //    for (ushort i = 0; i < numChilds; i++)
-            //    {
-            //        br.BaseStream.Position = pos;
-            //        var name = br.ReadUInt16();
-            //        var varname = Names[name].Str;
-            //        var type = br.ReadUInt16();
-            //        var typename = Names[type].Str;
-            //        var off = br.ReadUInt32();
-            //        pos = br.BaseStream.Position;
-            //        var parsedvar = parent.GetPropertyByREDName(varname);
-            //        if (parsedvar == null || parsedvar.REDType != typename)
-            //        {
-            //            throw new MissingRTTIException(varname, typename, parent.REDType);
-            //        }
-            //        br.BaseStream.Position = off + basePos;
-            //        parsedvar = ReadVariable(br, parsedvar);
-            //    }
-            //}
-            //else
-            //{
-            //    parent.Read(br, (uint)(br.BaseStream.Length - br.BaseStream.Position));
-            //}
-            //parent.IsSerialized = true;
-            //return parent;
+            if (parent is DataBuffer buff)
+            {
+                var size = br.ReadUInt32();
+                var data = br.ReadBytes((int)size);
+                buff.Pointer = Buffers.Count + 1;
+                Buffers.Add(new CR2WBuffer()
+                {
+                    Flags = 0,
+                    MemSize = size,
+                    Data = data,
+                    IsCompressed = true
+                });
+            }
+            else if (parent is IRedRef rref)
+            {
+                rref.DepotPath = Imports[br.ReadUInt16()].DepotPath;
+            }
+            else if (parent is IRedArray arr)
+            {
+                var len = br.ReadUInt32();
+                for (uint e = 0; e < len; e++)
+                {
+                    var element = RedTypeManager.Create(arr.InnerType.ToString());
+                    arr.Add(ReadVariable(br, element));
+                   // element.ParentVar = arr;
+                }
+            }
+            else if (parent is IRedEnum enu)
+            {
+                var strings = new List<string>();
+                if (enu.IsFlag)
+                {
+                    var len = br.ReadByte();
+                    for (byte e = 0; e < len; e++)
+                    {
+                        strings.Add(Names[br.ReadUInt16()].Str);
+                    }
+                }
+                else
+                {
+                    strings.Add(Names[br.ReadUInt16()].Str);
+                }
+                enu.SetValue(strings);
+            }
+            else if (parent is LocalizationString lstr)
+            {
+                lstr.Unk1.Read(br, 8);
+                var lslen = br.ReadUInt16();
+                var lsVal = System.Text.Encoding.GetEncoding("ISO-8859-1").GetString(br.ReadBytes(lslen));
+                lstr.Value.SetValue(lsVal);
+            }
+            else if (parent is CColor)
+            {
+                var basePos = br.BaseStream.Position;
+                var numChilds = br.ReadUInt16();
+                var pos = basePos + 2;
+                for (ushort i = 0; i < numChilds; i++)
+                {
+                    br.BaseStream.Position = pos;
+                    var name = br.ReadUInt16();
+                    var varname = Names[name].Str;
+                    var type = br.ReadUInt16();
+                    var typename = Names[type].Str;
+                    var off = br.ReadUInt32();
+                    pos = br.BaseStream.Position;
+                    var parsedvar = parent.GetPropertyByREDName(varname);
+                    if (parsedvar == null || parsedvar.REDType != typename)
+                    {
+                        throw new MissingRTTIException(varname, typename, parent.REDType);
+                    }
+                    br.BaseStream.Position = off + basePos;
+                    parsedvar = ReadVariable(br, parsedvar);
+                }
+            }
+            else if (parent.ChildrEditableVariables.Count > 0)
+            {
+                var basePos = br.BaseStream.Position;
+                var numChilds = br.ReadUInt16();
+                var pos = basePos + 2;
+                for (ushort i = 0; i < numChilds; i++)
+                {
+                    br.BaseStream.Position = pos;
+                    var name = br.ReadUInt16();
+                    var varname = Names[name].Str;
+                    var type = br.ReadUInt16();
+                    var typename = Names[type].Str;
+                    var off = br.ReadUInt32();
+                    pos = br.BaseStream.Position;
+                    var parsedvar = parent.GetPropertyByREDName(varname);
+                    if (parsedvar == null || parsedvar.REDType != typename)
+                    {
+                        throw new MissingRTTIException(varname, typename, parent.Type);
+                    }
+                    br.BaseStream.Position = off + basePos;
+                    parsedvar = ReadVariable(br, parsedvar);
+                }
+            }
+            else
+            {
+                parent.Read(br, (uint)(br.BaseStream.Length - br.BaseStream.Position));
+            }
+            parent.IsSerialized = true;
+            return parent;
         }
         public int GetStringIndex(string name, bool addnew = false)
         {
@@ -299,9 +301,10 @@ namespace WolvenKit.Common.RED4.Compiled
         {
             throw new NotImplementedException();
         }
-        public ICR2WExport CreateChunk(string type, int chunkindex = 0, ICR2WExport parent = null, ICR2WExport virtualparent = null, IRedType cvar = null)
+        public Export CreateChunk(string type, int chunkindex = 0, ICR2WExport parent = null, ICR2WExport virtualparent = null, IRedType cvar = null)
         {
             var chunk = new Export(this, type, parent as Export);
+
             chunk.ChunkIndex = chunkindex;
             if (cvar != null)
             {
@@ -311,7 +314,7 @@ namespace WolvenKit.Common.RED4.Compiled
             {
                 chunk.CreateDefaultData(cvar);
             }
-            //chunk.Data.VarChunkIndex = chunkindex;
+            chunk.Data.VarChunkIndex = chunkindex;
 
             if (parent != null)
             {
@@ -322,9 +325,9 @@ namespace WolvenKit.Common.RED4.Compiled
                 chunk.MountChunkVirtually(virtualparent);
             }
 
-            throw new TodoException("fix everything");
-            //Chunks.Insert(chunkindex, chunk);
-            //return chunk;
+            //throw new TodoException("fix everything");
+            _chunks.Insert(chunkindex, chunk.Type);
+            return chunk;
         }
     }
     public class Import : ICR2WImport
@@ -360,6 +363,7 @@ namespace WolvenKit.Common.RED4.Compiled
     {
        // public bool ShouldSerializeData() => Data.IsSerialized == true;
         public string REDType { get; }
+        public IRedClass Type { get; }
         [JsonIgnore] public CompiledPackage Package { get; private set; }
         public int ParentChunkIndex { get; }
 
@@ -400,24 +404,23 @@ namespace WolvenKit.Common.RED4.Compiled
             var basePos = br.BaseStream.Position;
             var numChilds = br.ReadUInt16();
             var pos = basePos + 2;
-            throw new WolvenKit.RED4.Types.Exceptions.TodoException();
-            //for (ushort i = 0; i < numChilds; i++)
-            //{
-            //    br.BaseStream.Position = pos;
-            //    var name = br.ReadUInt16();
-            //    var varname = Package.Names[name].Str;
-            //    var type = br.ReadUInt16();
-            //    var typename = Package.Names[type].Str;
-            //    var off = br.ReadUInt32();
-            //    pos = br.BaseStream.Position;
-            //    var parsedvar = Data.GetPropertyByREDName(varname);
-            //    if (parsedvar == null || parsedvar.REDType != typename)
-            //    {
-            //        throw new MissingRTTIException(varname, typename, Data.REDType);
-            //    }
-            //    br.BaseStream.Position = off + basePos;
-            //    Package.ReadVariable(br, parsedvar);
-            //}
+            for (ushort i = 0; i < numChilds; i++)
+            {
+                br.BaseStream.Position = pos;
+                var name = br.ReadUInt16();
+                var varname = Package.Names[name].Str;
+                var type = br.ReadUInt16();
+                var typename = Package.Names[type].Str;
+                var off = br.ReadUInt32();
+                pos = br.BaseStream.Position;
+                var parsedvar = Data.GetPropertyByREDName(varname);
+                if (parsedvar == null || parsedvar.REDType != typename)
+                {
+                    throw new MissingRTTIException(varname, typename, Data.REDType);
+                }
+                br.BaseStream.Position = off + basePos;
+                Package.ReadVariable(br, parsedvar);
+            }
         }
         public void WriteData(BinaryWriter file)
         {
@@ -432,7 +435,7 @@ namespace WolvenKit.Common.RED4.Compiled
             //AbReferences = new List<IREDChunkPtr>();
 
             Package = file;
-            REDType = redtype;
+            Type = RedTypeManager.Create(redtype);
             ParentChunk = parentchunk;
         }
     }
